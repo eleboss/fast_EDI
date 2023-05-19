@@ -8,6 +8,7 @@
 
 This is the official repo for the work: "Fast Event-based Double Integral for Real-time Robotics"
 
-Here we release our code for review purpose, details of the usage will be updated later.
+tutorial coming soon!
+eta: 2023/5/31
 
 
