@@ -9,8 +9,6 @@
 #include <libcaercpp/devices/davis.hpp>
 #include <libcaercpp/devices/device_discover.hpp>
 
-#include "dvec_base.hpp"
-
 #define DAVIS346_IMAGE_HEIGHT 260
 #define DAVIS346_IMAGE_WIDTH 346
 #define DAVIS346_IMAGE_PIXNUM (DAVIS346_IMAGE_HEIGHT * DAVIS346_IMAGE_WIDTH)
@@ -18,63 +16,38 @@
 #define MAX_SIZE 700
 typedef std::numeric_limits< double > dbl;
 
-class SceneIrrdianceEst : public dv::ModuleBase {
+class FastEDI : public dv::ModuleBase {
 
 private:
-	long numberOfEvents = 0;
 	bool frameReceiveFlag_ = false;
-	bool enoughEventFlag_ = false;
 	bool pushbackFlag_ = false;
-	bool frontEndSwitch = true; // front is true
-	double trig_aps_start_ts = 0;
-	double trig_aps_end_ts = 0;
-	bool push_or_trigger = 0; // 0 for trigger
-	dv::EventStore store;
 	double frame_ts_expStart = INT64_MAX;
 	double frame_ts_expEnd = INT64_MAX;
-	double frame_ts_frStart = INT64_MAX;
-	double frame_ts_frEnd = INT64_MAX;
-	double frame_ts_frEnd_prev = 0;
 	double frame_ts = 0;
-	int freq_counter = 0;
-	std::vector<double> frame_ts_expStart_list;
-	std::vector<double> frame_ts_expEnd_list;
-	std::vector<double>	frame_ts_frStart_list;
-	std::vector<double> frame_ts_frEnd_list;
 
-	std::vector<double> temp_event_img_nonuni =  std::vector<double>(DAVIS346_IMAGE_PIXNUM, 0);
-	std::vector<double> temp_event_img_exp_nonuni = std::vector<double>(DAVIS346_IMAGE_PIXNUM, 1);
-	std::vector<double> temp_stack_event_img_nonuni = std::vector<double>(DAVIS346_IMAGE_PIXNUM, 0);
-	std::vector<double> temp_aps_irr_deblur_log = std::vector<double>(DAVIS346_IMAGE_PIXNUM, 0);
-	
+	cv::Mat input_img;
 	long int nonuni_counter = 0;
 
 	long long total_events_decode = 0;
-	long long total_events_encode = 0;
-	long long total_runtime_encode = 0;
 	long long total_runtime_decode = 0;
 
-	double temp_stacked_num_counter_nonuni = 0;
 
 	std::vector<double> crf_exposure;
 	std::vector<double> crf_irr;
 	std::vector<double> aps_irr_log = std::vector<double>(DAVIS346_IMAGE_PIXNUM, 0);
-	std::vector<int> aps_img = std::vector<int>(DAVIS346_IMAGE_PIXNUM, 0);
+	// std::vector<uint8_t> aps_img = std::vector<uint8_t>(DAVIS346_IMAGE_PIXNUM, 0);
+	std::vector<uint8_t> deblur_exp = std::vector<uint8_t>(DAVIS346_IMAGE_PIXNUM, 1);
 
 	// int dn_upthresh_;
 	// int dn_downthresh_;
 	double dvs_c_pos_;
 	double dvs_c_neg_;
-	std::string aps_irr_scenemap_saved_path;
 	bool loadOnceFlag_ = true;
-
-	//previous generated HDR scenemap
-	std::vector<double> aps_irr_scenemap = std::vector<double>(DAVIS346_IMAGE_PIXNUM, 0);	
+	std::string crf_addr;
 
 	// variable for event runtime processing
 	std::vector<double> ev_irr_runtime_log = std::vector<double>(DAVIS346_IMAGE_PIXNUM, 0);
 	std::vector<double> stacked_ev_irr_runtime_exp = std::vector<double>(DAVIS346_IMAGE_PIXNUM, 1);
-	std::vector<double> stacked_runtime_counter_uni = std::vector<double>(DAVIS346_IMAGE_PIXNUM, 1);
 	double stacked_runtime_counter_nonuni = 0;
 
 
@@ -87,7 +60,6 @@ private:
 
 
 	// variable for irrdiance estimation
-	std::vector<double>  est_ev_irr_exp_uni = std::vector<double>(DAVIS346_IMAGE_PIXNUM, 0);
 	std::vector<double>  est_ev_irr_exp_nonuni = std::vector<double>(DAVIS346_IMAGE_PIXNUM, 0);
 	std::vector<double> est_ev_pixcount_uni = std::vector<double>(DAVIS346_IMAGE_PIXNUM, 1);
 
@@ -97,33 +69,12 @@ private:
 	double est_ev_pixcount_nonuni = 0;
 
 	// variable for irrdiance estimation, aps side
-	std::vector<double> aps_irr_log_list_valid;
-	std::vector<double> aps_irr_log_list_invalid;
-	std::vector<double> aps_irr_latest_est_log = std::vector<double>(DAVIS346_IMAGE_PIXNUM, 0);
 	std::vector<double> aps_irr_deblur_log = std::vector<double>(DAVIS346_IMAGE_PIXNUM, 0);
 
-	// variable for contineous irridance estimation
-	std::vector<double> latest_irr_exp = std::vector<double>(DAVIS346_IMAGE_PIXNUM, 1);
-	std::vector<double> prev_latest_irr_exp;
-	std::vector<double> current_latest_irr_exp = std::vector<double>(DAVIS346_IMAGE_PIXNUM, 1);
 
 public:
-	SceneIrrdianceEst() {
-		outputs.infoNode("deblur").create<dv::Config::AttributeType::STRING>("source", "deblur image for display", {0, 8192},
-			dv::Config::AttributeFlags::READ_ONLY | dv::Config::AttributeFlags::NO_EXPORT,
-			"Description of the first origin of the data");
-	}
-	static void initTypes(std::vector<dv::Types::Type> &types) {
-		types.push_back(dv::Types::makeTypeDefinition<VectorPack, DoubleVector>("A double vector."));
-	}
-
-	static void initInputs(dv::InputDefinitionList &in) {
-		in.addFrameInput("frames");
-		in.addTriggerInput("triggers");
-		in.addEventInput("events");
-	}
-	static void initOutputs(dv::OutputDefinitionList &out) {
-		out.addOutput("deblur", VectorPack::TableType::identifier);
+	FastEDI() {
+		outputs.getFrameOutput("image").setup(DAVIS346_IMAGE_WIDTH, DAVIS346_IMAGE_HEIGHT, "deblur result for vis, x*y");
 
 	}
 	std::vector<double> loading_vec_from_file(std::string file_path)
@@ -150,28 +101,20 @@ public:
 				}
 				vec.push_back(vec_value);
 			}
-			// std::cout<<"------------------------------------------------"<<std::endl;
-			// std::cout<<"loading finished, crf size is:"<<crf.size()<<std::endl;
-			// std::cout<<"------------------------------------------------"<<std::endl;
 			myfile.close();
 		}
 		return vec;
 	}
-
-	void writing_mat_to_file(std::string file_path, const std::vector<double> &vector_to_save)
-	{
-		std::ofstream myfile;
-		myfile.open(file_path);
-		
-		for(int j = 0; j < vector_to_save.size(); j++)
-		{
-			myfile<<vector_to_save[j]<<std::endl;
-		}
-		myfile.close();
+	static void initInputs(dv::InputDefinitionList &in) {
+		in.addFrameInput("frames");
+		in.addEventInput("events");
+	}
+	static void initOutputs(dv::OutputDefinitionList &out) {
+		out.addFrameOutput("image");
 	}
 
 	static const char *initDescription() {
-		return ("This is the first part of the pipeline, generate the scene irrdiance map.");
+		return ("The fast EDI pipeline");
 	}
 
 	static void initConfigOptions(dv::RuntimeConfig &config) {
@@ -181,54 +124,37 @@ public:
 		config.add("dvs_c_neg",
 			dv::ConfigOption::doubleOption(
 				"DVS contrast negative.", -0.2415, -10, 0));
-		config.add("push_or_trigger",
-			dv::ConfigOption::boolOption(
-				"Select trigger mode or push mode, trigger is inaccurate, true for trigger", true));
+		config.add("crf_address", 
+			dv::ConfigOption::stringOption(
+				"location of the camera response function", "../../camera_response_function/crf.txt"));
+
 	}
 	void configUpdate() override {
 		// get parameter
-		// dn_upthresh_ = config.getInt("dn_upthresh");
-		// dn_downthresh_ = config.getInt("dn_downthresh");
 		dvs_c_pos_ = config.getDouble("dvs_c_pos");
 		dvs_c_neg_ = config.getDouble("dvs_c_neg");
-		push_or_trigger = config.getBool("push_or_trigger");
+		crf_addr = config.getString("crf_address");
+
 		if(loadOnceFlag_)
 		{
 			loadOnceFlag_ = false;
-			crf_exposure = loading_vec_from_file("/home/eleboss/Documents/ev_runtime/crf/crf.txt");
-			aps_irr_scenemap_saved_path = "/home/eleboss/Documents/ev_runtime/dv/vis_data/aps_irr_scenemap.txt";
-			aps_irr_scenemap = loading_vec_from_file(aps_irr_scenemap_saved_path);
-			for (int i=0; i<aps_irr_scenemap.size(); i++) 
-				prev_latest_irr_exp.push_back(exp(aps_irr_scenemap[i])); 
+			crf_exposure = loading_vec_from_file(crf_addr);
 		}
 
 	}
 
 	void run() override 
 	{
-		auto trigger = inputs.getTriggerInput("triggers").data();
-		if(trigger)
-		{
-			if (trigger.front().type == dv::TriggerType::APS_FRAME_START)
-			{
-				frontEndSwitch = true;
-				trig_aps_start_ts = trigger.front().timestamp/TIME_SCALE;
-			}
-			else if(trigger.front().type == dv::TriggerType::APS_FRAME_END)
-			{
-				frontEndSwitch = false;
-				trig_aps_end_ts = trigger.front().timestamp/TIME_SCALE;
-			}
-		}
-
 		double exposure_time = 0;
 		// get data
-		auto frame = inputs.getFrameInput("frames").data();
+		const auto frame = inputs.getFrameInput("frames").frame();
+
 		if(frame && !frameReceiveFlag_)
 		{
+			
+			input_img = *frame.getMatPointer();
+
 			frame_ts = double(frame.timestamp())/TIME_SCALE;
-			frame_ts_frStart = double(frame.timestampStartOfFrame())/TIME_SCALE;
-			frame_ts_frEnd = double(frame.timestampEndOfFrame())/TIME_SCALE;
 			frame_ts_expStart = double(frame.timestampStartOfExposure())/TIME_SCALE;
 			frame_ts_expEnd = double(frame.timestampEndOfExposure())/TIME_SCALE;
 
@@ -242,14 +168,13 @@ public:
 			// crf mapping
 			for(int j = 0; j < DAVIS346_IMAGE_PIXNUM; j++) 
 			{
-				int pix_dn = frame.pixels()[j];
+				uint8_t pix_dn = input_img.at<uint8_t>(j);
+				// log.info<<pix_dn<<" "<< dv::logEnd;
 				aps_irr_log[j] = crf_irr[pix_dn];
-				aps_img[j] = pix_dn;
+				// aps_img[j] = pix_dn;
 			}
 			frameReceiveFlag_ = true;
 		}
-
-
 
 		auto events = inputs.getEventInput("events").events();
 		if(events)
@@ -257,9 +182,8 @@ public:
 			double latest_event_time = double(events[-1].timestamp())/TIME_SCALE;
 			double first_event_time = double(events[0].timestamp())/TIME_SCALE;
 			///////////////////////////
-			// utilize trigger
 			// int ev_counter = 0;
-			auto start = std::chrono::high_resolution_clock::now();
+			// auto start = std::chrono::high_resolution_clock::now();
 			for (const dv::Event &event : events)
 			{
 
@@ -271,18 +195,15 @@ public:
 				double ev_irr_exp_rt = exp(ev_irr_runtime_log[pix_index]);
 				stacked_ev_irr_runtime_exp[pix_index] = stacked_ev_irr_runtime_exp[pix_index] + ev_irr_exp_rt;
 				stacked_runtime_counter_nonuni = stacked_runtime_counter_nonuni + 1;
-				// push_back comsume a lot amount of time, I am trying to use trigger to boost speed but current trigger is not synced, thus inaccurate.
-				// future work will try to use module synced by LUCA.
+
 				int runtime_counter = dynamic_runtime_counter[pix_index];
 				ev_irr_exp_runtime_list[pix_index][runtime_counter] = {ev_t_rt, ev_irr_exp_rt, stacked_runtime_counter_nonuni};
 				stacked_runtime_counter_nonuni_list[nonuni_counter] = {ev_t_rt, stacked_runtime_counter_nonuni};
 				dynamic_runtime_counter[pix_index] += 1;
 				nonuni_counter += 1;
-
 			}
 
-
-			if(latest_event_time > frame_ts_frEnd && frameReceiveFlag_)
+			if(latest_event_time > frame_ts_expEnd && frameReceiveFlag_)
 			{
 
 				auto start = std::chrono::high_resolution_clock::now();
@@ -400,11 +321,11 @@ public:
 					aps_irr_deblur_log[i] = aps_irr_log[i] - std::log(est_ev_irr_exp_nonuni[i]);
 				}
 				
-				auto elapsed = std::chrono::high_resolution_clock::now() - start;
-				long long runtime_duration = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
-				total_events_decode += nonuni_counter;
-				total_runtime_decode += runtime_duration;
-				double event_rate_decode = total_events_decode / (double(total_runtime_decode)/TIME_SCALE);
+				// auto elapsed = std::chrono::high_resolution_clock::now() - start;
+				// long long runtime_duration = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
+				// total_events_decode += nonuni_counter;
+				// total_runtime_decode += runtime_duration;
+				// double event_rate_decode = total_events_decode / (double(total_runtime_decode)/TIME_SCALE);
 				// log.info << "total_runtime_decode: " << total_runtime_decode<< "event rate decode: "<< event_rate_decode << dv::logEnd;
 
 				//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -414,24 +335,32 @@ public:
 				std::fill(stacked_ev_irr_runtime_exp.begin(), stacked_ev_irr_runtime_exp.end(), 1);
 				nonuni_counter = 0;
 				dynamic_runtime_counter = std::vector<double>(DAVIS346_IMAGE_PIXNUM, 0);
-				//////////////////////////////////////////
-				auto out_deblur  = outputs.getVectorOutput<VectorPack, DoubleVector>("deblur").data();
-				DoubleVector outFrame_deblur;
-				outFrame_deblur.timestamp = frame_ts * TIME_SCALE;
-				outFrame_deblur.timestampStartOfExposure = frame_ts_expStart * TIME_SCALE;
-				outFrame_deblur.timestampEndOfExposure = frame_ts_expEnd * TIME_SCALE;
-				outFrame_deblur.timestampStartOfFrame = frame_ts_frStart * TIME_SCALE;
-				outFrame_deblur.timestampEndOfFrame = frame_ts_frEnd * TIME_SCALE;
-				outFrame_deblur.pixels = aps_irr_deblur_log;
-				out_deblur.push_back(outFrame_deblur);
-				out_deblur.commit();
-				out_deblur.clear();
+		
+				////////////////////////////////////////// output as image
+				for (int i = 0; i < DAVIS346_IMAGE_PIXNUM; i++)
+				{
+					for (uint8_t j = 0; j < 255; j++)
+					{
+						if(aps_irr_deblur_log[i] >= crf_irr[j])
+							deblur_exp[i] = j;
+						else
+							break;
+					}
+				}
+				//load to mat
+				cv::Mat deblur_exp_mat(1, deblur_exp.size(), CV_8UC1, deblur_exp.data());
+				deblur_exp_mat = deblur_exp_mat.reshape(1,DAVIS346_IMAGE_HEIGHT);
+
+				// send it for exposure estimation
+				auto outFrame_deblur = outputs.getFrameOutput("image").frame();
+				outFrame_deblur.setTimestamp(frame_ts * TIME_SCALE);
+				// outFrame_deblur.timestampStartOfExposure(frame_ts_expStart * TIME_SCALE);
+				// outFrame_deblur.timestampEndOfExposure(frame_ts_expEnd * TIME_SCALE);
+				outFrame_deblur.setMat(deblur_exp_mat);
+				outFrame_deblur.commit();
 			}
-			
-
-
 		}
 	}
 };
 
-registerModuleClass(SceneIrrdianceEst)
+registerModuleClass(FastEDI)

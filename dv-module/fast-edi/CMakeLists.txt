@@ -17,13 +17,13 @@ IF (NOT CMAKE_INSTALL_PREFIX)
 ENDIF()
 
 # Project name and version
-PROJECT(event-irr-est
+PROJECT(fast-edi
 	VERSION 1.0.0
 	LANGUAGES C CXX)
 
 # Define installation paths
 INCLUDE(GNUInstallDirs)
-find_package(Boost REQUIRED COMPONENTS filesystem)
+# find_package(Boost REQUIRED COMPONENTS filesystem)
 
 # Custom CMake base module
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
@@ -39,13 +39,13 @@ DV_MODULE_SETUP()
 SET(CMAKE_INSTALL_RPATH ${DV_MODULES_DIR})
 
 # Compile this module (standard C++ file, no additional dependencies)
-ADD_LIBRARY(EventIrrdianceEst SHARED EventIrrdianceEst.cpp)
+ADD_LIBRARY(FEDI SHARED FEDI.cpp)
 
-SET_TARGET_PROPERTIES(EventIrrdianceEst
+SET_TARGET_PROPERTIES(FEDI
 	PROPERTIES
-	PREFIX "user_"
+	PREFIX "fedi_"
 )
 
-TARGET_LINK_LIBRARIES(EventIrrdianceEst PRIVATE ${DV_LIBRARIES})
+TARGET_LINK_LIBRARIES(FEDI PRIVATE ${DV_LIBRARIES})
 
-INSTALL(TARGETS EventIrrdianceEst DESTINATION ${DV_MODULES_DIR})
+INSTALL(TARGETS FEDI DESTINATION ${DV_MODULES_DIR})

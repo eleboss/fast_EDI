@@ -25,11 +25,37 @@ and the physical model that build to estimate the threshold:[Paper](https://ieee
 
 
 ## Usage
-1.
+1. download the DV and install it following the tutorial [DV install guide](https://inivation.gitlab.io/dv/dv-docs/docs/getting-started.html)
+2. download the fast EDI code
 ```
 git clone https://github.com/eleboss/fast_EDI
 ```
+3. compile the fast EDI module
+```
+cd ./dv-module/fast-edi
+cmake ./
+make
+```
+then you will see the `fedi_FEDI.so`, this is the file you need to add to the dv-gui.
 
-## The test dataset
-![Example of real sequence of EBT dataset](./figures/example.png)
+4. configure the DV-GUI search path
+```
+dv-gui
+```
+find the `structure - add modules - modify module search path - add path` (this path leads to `fedi_FEDI.so`, for me is `/home/eleboss/Documents/fast_EDI/dv-module/fast-edi`). Then you can add the fast edi modules to the dv-gui and wires it in this way:
+![layout](./img/layout.png)
 
+5. download the test data [dataset](www.google.com), and play it. 
+
+Performance tips: You can tune the contrast or use the jAER to estimate, or use EDI to optimize an accurate contrast.
+
+## Citation
+```
+@article{lin2023fast,
+  title={Fast Event-based Double Integral for Real-time Robotics},
+  author={Lin, Shijie and Zhang, Yingqiang and Huang, Dongyue and Zhou, Bin and Luo, Xiaowei and Pan, Jia},
+  booktitle={international conference on robotics and automation (ICRA)},
+  year={2023},
+  organization={IEEE}
+}
+```
