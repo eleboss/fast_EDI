@@ -20,9 +20,6 @@ Discussion regarding the bias estimation:[discussion](https://groups.google.com/
 
 and the physical model that build to estimate the threshold:[Paper](https://ieeexplore.ieee.org/document/7962235/)
 
-## Compiling the DV module.
-[jAER homepage](https://inivation.gitlab.io/dv/dv-docs/docs/first-module/)
-
 
 ## Usage
 Test env:
