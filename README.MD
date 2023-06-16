@@ -25,6 +25,13 @@ and the physical model that build to estimate the threshold:[Paper](https://ieee
 
 
 ## Usage
+Test env:
+```
+ubuntu 18.04 
+dv-runtime 1.6.1 
+dv-gui 1.6.0
+```
+
 1. download the DV and install it following the tutorial [DV install guide](https://inivation.gitlab.io/dv/dv-docs/docs/getting-started.html)
 2. download the fast EDI code
 ```
