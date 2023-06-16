@@ -49,7 +49,7 @@ dv-gui
 find the `structure - add modules - modify module search path - add path` (this path leads to `fedi_FEDI.so`, for me is `/home/eleboss/Documents/fast_EDI/dv-module/fast-edi`). Then you can add the fast edi modules to the dv-gui and wires it in this way:
 ![layout](./img/layout.png)
 
-1. download the test data [dataset](https://figshare.com/s/bfa74d5793a4af962b49), and play it. 
+5. download the test data [dataset](https://figshare.com/s/bfa74d5793a4af962b49), and play it. 
 
 Performance tips: You can tune the contrast or use the jAER to estimate, or use EDI to optimize an accurate contrast.
 
