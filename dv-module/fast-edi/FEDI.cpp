@@ -32,11 +32,8 @@ private:
 	std::vector<double> crf_exposure;
 	std::vector<double> crf_irr;
 	std::vector<double> aps_irr_log = std::vector<double>(DAVIS346_IMAGE_PIXNUM, 0);
-	// std::vector<uint8_t> aps_img = std::vector<uint8_t>(DAVIS346_IMAGE_PIXNUM, 0);
 	std::vector<uint8_t> deblur_exp = std::vector<uint8_t>(DAVIS346_IMAGE_PIXNUM, 1);
 
-	// int dn_upthresh_;
-	// int dn_downthresh_;
 	double dvs_c_pos_;
 	double dvs_c_neg_;
 	bool loadOnceFlag_ = true;
@@ -53,8 +50,6 @@ private:
 	std::array<std::array<double, 2>, MAX_SIZE * DAVIS346_IMAGE_PIXNUM> stacked_runtime_counter_nonuni_list;
 
 	std::array<std::array<std::array<double,3>,MAX_SIZE>,DAVIS346_IMAGE_PIXNUM> ev_irr_exp_runtime_list;
-
-
 
 	// variable for irrdiance estimation
 	std::vector<double>  est_ev_irr_exp_nonuni = std::vector<double>(DAVIS346_IMAGE_PIXNUM, 0);
@@ -318,13 +313,6 @@ public:
 					aps_irr_deblur_log[i] = aps_irr_log[i] - std::log(est_ev_irr_exp_nonuni[i]);
 				}
 				
-				// auto elapsed = std::chrono::high_resolution_clock::now() - start;
-				// long long runtime_duration = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
-				// total_events_decode += nonuni_counter;
-				// total_runtime_decode += runtime_duration;
-				// double event_rate_decode = total_events_decode / (double(total_runtime_decode)/TIME_SCALE);
-				// log.info << "total_runtime_decode: " << total_runtime_decode<< "event rate decode: "<< event_rate_decode << dv::logEnd;
-
 				//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 				// clear parts of the container 
 				stacked_runtime_counter_nonuni = 0;
