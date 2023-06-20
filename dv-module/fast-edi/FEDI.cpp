@@ -126,7 +126,7 @@ public:
 				"DVS contrast negative.", -0.2415, -10, 0));
 		config.add("crf_address", 
 			dv::ConfigOption::stringOption(
-				"location of the camera response function", "../../camera_response_function/crf.txt"));
+				"location of the camera response function", "/home/eleboss/Documents/fast_EDI/camera_response_function/crf.txt"));
 
 	}
 	void configUpdate() override {

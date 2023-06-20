@@ -53,6 +53,7 @@ find the `structure - add modules - modify module search path - add path` (this 
 
 Performance tips: You can tune the contrast or use the jAER to estimate, or use EDI to optimize an accurate contrast.
 
+I have already calibrated the camera response function for DAVIS346, you should load this file before launching the fast-edi module, the camera response function gives a slightly more accurate log mapping, which improves the reconstuction performance. You can also delete it and use the log mapping, which makes it identical to the original paper of EDI. 
 ## Citation
 ```
 @article{lin2023fast,
