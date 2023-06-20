@@ -6,9 +6,6 @@
 #include <math.h> 
 #include <ctime>
 
-#include <libcaercpp/devices/davis.hpp>
-#include <libcaercpp/devices/device_discover.hpp>
-
 #define DAVIS346_IMAGE_HEIGHT 260
 #define DAVIS346_IMAGE_WIDTH 346
 #define DAVIS346_IMAGE_PIXNUM (DAVIS346_IMAGE_HEIGHT * DAVIS346_IMAGE_WIDTH)
@@ -354,8 +351,6 @@ public:
 				// send it for exposure estimation
 				auto outFrame_deblur = outputs.getFrameOutput("image").frame();
 				outFrame_deblur.setTimestamp(frame_ts * TIME_SCALE);
-				// outFrame_deblur.timestampStartOfExposure(frame_ts_expStart * TIME_SCALE);
-				// outFrame_deblur.timestampEndOfExposure(frame_ts_expEnd * TIME_SCALE);
 				outFrame_deblur.setMat(deblur_exp_mat);
 				outFrame_deblur.commit();
 			}
